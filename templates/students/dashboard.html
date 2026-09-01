@@ -1,0 +1,9 @@
+{% extends "base.html" %}
+{% block title %}Dashboard{% endblock %}
+{% block content %}
+<h1 class="mb-4">Dashboard 🎓</h1><div class="row g-3">
+<div class="col-md-4"><div class="card shadow-sm"><div class="card-body"><h5>Étudiants</h5><div class="display-5">{{ students_count }}</div><a href="/students/">Voir</a></div></div></div>
+<div class="col-md-4"><div class="card shadow-sm"><div class="card-body"><h5>Cours</h5><div class="display-5">{{ courses_count }}</div><a href="/courses/">Voir</a></div></div></div>
+<div class="col-md-4"><div class="card shadow-sm"><div class="card-body"><h5>Inscriptions</h5><div class="display-5">{{ enrolments_count }}</div><a href="/enrolments/">Voir</a></div></div></div>
+</div>
+{% endblock %}
