@@ -1,9 +1,33 @@
 {% extends "base.html" %}
 {% block title %}Dashboard{% endblock %}
 {% block content %}
-<h1 class="mb-4">Dashboard 🎓</h1><div class="row g-3">
-<div class="col-md-4"><div class="card shadow-sm"><div class="card-body"><h5>Étudiants</h5><div class="display-5">{{ students_count }}</div><a href="/students/">Voir</a></div></div></div>
-<div class="col-md-4"><div class="card shadow-sm"><div class="card-body"><h5>Cours</h5><div class="display-5">{{ courses_count }}</div><a href="/courses/">Voir</a></div></div></div>
-<div class="col-md-4"><div class="card shadow-sm"><div class="card-body"><h5>Inscriptions</h5><div class="display-5">{{ enrolments_count }}</div><a href="/enrolments/">Voir</a></div></div></div>
+<div class="d-flex justify-content-between align-items-center mb-4">
+  <div><h1 class="mb-1">Dashboard 🎓</h1><p class="text-muted mb-0">Vue d'ensemble de la plateforme</p></div>
 </div>
+<div class="row g-3 mb-4">
+  <div class="col-md-4 col-lg-3"><div class="card shadow-sm h-100"><div class="card-body"><h6 class="text-muted">Étudiants</h6><div class="display-6">{{ students_count }}</div></div></div></div>
+  <div class="col-md-4 col-lg-3"><div class="card shadow-sm h-100"><div class="card-body"><h6 class="text-muted">Cours</h6><div class="display-6">{{ courses_count }}</div></div></div></div>
+  <div class="col-md-4 col-lg-3"><div class="card shadow-sm h-100"><div class="card-body"><h6 class="text-muted">Inscriptions</h6><div class="display-6">{{ enrolments_count }}</div></div></div></div>
+  <div class="col-md-4 col-lg-3"><div class="card shadow-sm h-100"><div class="card-body"><h6 class="text-muted">Note moyenne</h6><div class="display-6">{% if average_grade != None %}{{ average_grade|floatformat:1 }}{% else %}-{% endif %}</div></div></div></div>
+</div>
+<div class="row g-3 mb-4">
+  <div class="col-md-3"><div class="card border-success"><div class="card-body"><span class="text-muted">Actives</span><h3>{{ active_enrolments_count }}</h3></div></div></div>
+  <div class="col-md-3"><div class="card border-warning"><div class="card-body"><span class="text-muted">En attente</span><h3>{{ pending_enrolments_count }}</h3></div></div></div>
+  <div class="col-md-3"><div class="card border-primary"><div class="card-body"><span class="text-muted">Terminées</span><h3>{{ completed_enrolments_count }}</h3></div></div></div>
+  <div class="col-md-3"><div class="card border-danger"><div class="card-body"><span class="text-muted">Annulées</span><h3>{{ cancelled_enrolments_count }}</h3></div></div></div>
+</div>
+<div class="row g-4">
+  <div class="col-lg-7"><div class="card shadow-sm"><div class="card-header"><strong>Étudiants par cours</strong></div><div class="card-body"><canvas id="courseChart" height="120"></canvas></div></div></div>
+  <div class="col-lg-5"><div class="card shadow-sm"><div class="card-header"><strong>Inscriptions par statut</strong></div><div class="card-body"><canvas id="statusChart" height="180"></canvas></div></div></div>
+</div>
+<div class="card shadow-sm mt-4"><div class="card-header"><strong>Détail des cours</strong></div><div class="table-responsive"><table class="table table-hover mb-0"><thead><tr><th>Cours</th><th>Code</th><th>Étudiants</th><th>Capacité</th><th>Places</th></tr></thead><tbody>{% for course in students_per_course %}<tr><td>{{ course.name }}</td><td>{{ course.code }}</td><td>{{ course.student_count }}</td><td>{{ course.capacity }}</td><td>{% widthratio course.student_count 1 1 %}{% with remaining=course.capacity|add:course.student_count|add:"-" %}{% endwith %}{{ course.capacity|add:course.student_count|add:"-" }}</td></tr>{% empty %}<tr><td colspan="5" class="text-center text-muted">Aucun cours.</td></tr>{% endfor %}</tbody></table></div></div>
+<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+<script>
+const courseLabels = [{% for course in students_per_course %}"{{ course.name|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+const courseData = [{% for course in students_per_course %}{{ course.student_count }}{% if not forloop.last %},{% endif %}{% endfor %}];
+new Chart(document.getElementById('courseChart'), {type:'bar', data:{labels:courseLabels,datasets:[{label:'Étudiants',data:courseData}]}, options:{responsive:true,scales:{y:{beginAtZero:true}}}});
+const statusLabels = [{% for row in enrolments_by_status %}"{{ row.status|escapejs }}"{% if not forloop.last %},{% endif %}{% endfor %}];
+const statusData = [{% for row in enrolments_by_status %}{{ row.total }}{% if not forloop.last %},{% endif %}{% endfor %}];
+new Chart(document.getElementById('statusChart'), {type:'doughnut', data:{labels:statusLabels,datasets:[{data:statusData}]}, options:{responsive:true}});
+</script>
 {% endblock %}
