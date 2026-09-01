@@ -5,6 +5,7 @@ from django.contrib.auth.forms import UserCreationForm
 from django.core.paginator import Paginator
 from django.db.models import Q
 from django.shortcuts import get_object_or_404, redirect, render
+from .dashboard_stats import dashboard_stats
 from .forms import StudentForm, CourseForm, EnrolmentForm
 from .models import Student, Course, Enrolment
 
@@ -27,11 +28,7 @@ def register(request):
 
 @login_required
 def dashboard(request):
-    return render(request, "students/dashboard.html", {
-        "students_count": Student.objects.count(),
-        "courses_count": Course.objects.count(),
-        "enrolments_count": Enrolment.objects.count(),
-    })
+    return render(request, "students/dashboard.html", dashboard_stats())
 
 
 @login_required
