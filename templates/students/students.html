@@ -1,1 +1,7 @@
-{% extends "base.html" %}{% block content %}<div class="d-flex justify-content-between mb-3"><h1>Étudiants</h1><a class="btn btn-primary" href="/students/add/">+ Ajouter</a></div><table class="table table-striped bg-white"><thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th></tr></thead><tbody>{% for s in students %}<tr><td>{{ s.first_name }} {{ s.last_name }}</td><td>{{ s.email }}</td><td>{{ s.phone }}</td></tr>{% empty %}<tr><td colspan="3">Aucun étudiant.</td></tr>{% endfor %}</tbody></table>{% endblock %}
+{% extends "base.html" %}
+{% block content %}
+<div class="d-flex justify-content-between align-items-center mb-3"><h1>Étudiants</h1><a class="btn btn-primary" href="{% url 'student_create' %}">+ Ajouter</a></div>
+<form method="get" class="row g-2 mb-3"><div class="col-md-6"><input class="form-control" name="q" value="{{ q }}" placeholder="Rechercher nom, email, téléphone..."></div><div class="col-auto"><button class="btn btn-outline-primary">Rechercher</button>{% if q %}<a class="btn btn-outline-secondary" href="{% url 'students' %}">Réinitialiser</a>{% endif %}</div></form>
+<table class="table table-striped bg-white align-middle"><thead><tr><th>Nom</th><th>Email</th><th>Téléphone</th><th class="text-end">Actions</th></tr></thead><tbody>{% for s in page_obj %}<tr><td>{{ s.first_name }} {{ s.last_name }}</td><td>{{ s.email }}</td><td>{{ s.phone|default:"-" }}</td><td class="text-end"><a class="btn btn-sm btn-outline-primary" href="{% url 'student_update' s.pk %}">Modifier</a> <a class="btn btn-sm btn-outline-danger" href="{% url 'student_delete' s.pk %}">Supprimer</a></td></tr>{% empty %}<tr><td colspan="4">Aucun étudiant.</td></tr>{% endfor %}</tbody></table>
+{% include "students/pagination.html" %}
+{% endblock %}
