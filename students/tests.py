@@ -1,11 +1,14 @@
 from datetime import date, timedelta
 from decimal import Decimal
 
+from django.contrib.auth import get_user_model
 from django.test import TestCase
 from django.urls import reverse
 
 from .forms import StudentForm, CourseForm, EnrolmentForm
 from .models import Student, Course, Enrolment
+
+User = get_user_model()
 
 
 class StudentModelTests(TestCase):
@@ -101,8 +104,62 @@ class EnrolmentFormTests(TestCase):
         self.assertFalse(EnrolmentForm(data=self.form_data(attendance="101")).is_valid())
 
 
+class AuthenticationTests(TestCase):
+    def setUp(self):
+        self.user = User.objects.create_user(username="user", password="StrongPass123!")
+        self.staff = User.objects.create_user(username="admin", password="StrongPass123!", is_staff=True)
+
+    def test_dashboard_requires_login(self):
+        response = self.client.get(reverse("dashboard"))
+        self.assertRedirects(response, f"{reverse('login')}?next={reverse('dashboard')}")
+
+    def test_register_creates_and_logs_in_user(self):
+        response = self.client.post(reverse("register"), {"username": "newuser", "password1": "StrongPass123!", "password2": "StrongPass123!"})
+        self.assertRedirects(response, reverse("dashboard"))
+        self.assertTrue(User.objects.filter(username="newuser").exists())
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
+        self.assertFalse(response.wsgi_request.user.is_staff)
+
+    def test_login_success(self):
+        response = self.client.post(reverse("login"), {"username": "user", "password": "StrongPass123!"})
+        self.assertRedirects(response, reverse("dashboard"))
+
+    def test_login_failure(self):
+        response = self.client.post(reverse("login"), {"username": "user", "password": "wrong"})
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, "Please enter a correct username and password")
+
+    def test_logout(self):
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("logout"))
+        self.assertRedirects(response, reverse("login"))
+
+    def test_regular_user_can_view_students(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("students")).status_code, 200)
+
+    def test_regular_user_cannot_create_student(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("student_create")).status_code, 302)
+
+    def test_staff_can_create_student(self):
+        self.client.force_login(self.staff)
+        response = self.client.post(reverse("student_create"), {"first_name": "Sara", "last_name": "Alaoui", "email": "sara@example.com", "phone": "", "date_of_birth": "", "address": ""})
+        self.assertRedirects(response, reverse("students"))
+        self.assertTrue(Student.objects.filter(email="sara@example.com").exists())
+
+    def test_regular_user_cannot_delete_student(self):
+        student = Student.objects.create(first_name="Ali", last_name="Amrani", email="ali@example.com")
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("student_delete", args=[student.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Student.objects.filter(pk=student.pk).exists())
+
+
 class CRUDViewTests(TestCase):
     def setUp(self):
+        self.staff = User.objects.create_user(username="admin", password="StrongPass123!", is_staff=True)
+        self.client.force_login(self.staff)
         self.student = Student.objects.create(first_name="Ali", last_name="Amrani", email="ali@example.com")
         self.course = Course.objects.create(name="Django", code="DJ101", duration=30, price=Decimal("1000.00"), start_date=date.today(), end_date=date.today() + timedelta(days=30), capacity=20, status="active")
         self.enrolment = Enrolment.objects.create(student=self.student, course=self.course, status="active")
