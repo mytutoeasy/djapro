@@ -94,8 +94,7 @@ class EnrolmentFormTests(TestCase):
         Enrolment.objects.create(student=self.student, course=self.course, status="active")
         Enrolment.objects.create(student=student2, course=self.course, status="active")
         student3 = Student.objects.create(first_name="Omar", last_name="Naji", email="omar@example.com")
-        data = self.form_data(student=student3.pk)
-        self.assertFalse(EnrolmentForm(data=data).is_valid())
+        self.assertFalse(EnrolmentForm(data=self.form_data(student=student3.pk)).is_valid())
 
     def test_grade_above_100_is_invalid(self):
         self.assertFalse(EnrolmentForm(data=self.form_data(grade="101")).is_valid())
@@ -109,9 +108,21 @@ class AuthenticationTests(TestCase):
         self.user = User.objects.create_user(username="user", password="StrongPass123!")
         self.staff = User.objects.create_user(username="admin", password="StrongPass123!", is_staff=True)
 
-    def test_dashboard_requires_login(self):
+    def test_anonymous_user_is_redirected_from_dashboard(self):
         response = self.client.get(reverse("dashboard"))
         self.assertRedirects(response, f"{reverse('login')}?next={reverse('dashboard')}")
+
+    def test_anonymous_user_is_redirected_from_students(self):
+        response = self.client.get(reverse("students"))
+        self.assertRedirects(response, f"{reverse('login')}?next={reverse('students')}")
+
+    def test_anonymous_user_is_redirected_from_courses(self):
+        response = self.client.get(reverse("courses"))
+        self.assertRedirects(response, f"{reverse('login')}?next={reverse('courses')}")
+
+    def test_anonymous_user_is_redirected_from_enrolments(self):
+        response = self.client.get(reverse("enrolments"))
+        self.assertRedirects(response, f"{reverse('login')}?next={reverse('enrolments')}")
 
     def test_register_creates_and_logs_in_user(self):
         response = self.client.post(reverse("register"), {"username": "newuser", "password1": "StrongPass123!", "password2": "StrongPass123!"})
@@ -120,40 +131,80 @@ class AuthenticationTests(TestCase):
         self.assertTrue(response.wsgi_request.user.is_authenticated)
         self.assertFalse(response.wsgi_request.user.is_staff)
 
+    def test_authenticated_user_cannot_register_again(self):
+        self.client.force_login(self.user)
+        response = self.client.get(reverse("register"))
+        self.assertRedirects(response, reverse("dashboard"))
+
     def test_login_success(self):
         response = self.client.post(reverse("login"), {"username": "user", "password": "StrongPass123!"})
         self.assertRedirects(response, reverse("dashboard"))
+        self.assertTrue(response.wsgi_request.user.is_authenticated)
 
     def test_login_failure(self):
         response = self.client.post(reverse("login"), {"username": "user", "password": "wrong"})
         self.assertEqual(response.status_code, 200)
         self.assertContains(response, "Please enter a correct username and password")
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
 
     def test_logout(self):
         self.client.force_login(self.user)
         response = self.client.post(reverse("logout"))
         self.assertRedirects(response, reverse("login"))
+        self.assertFalse(response.wsgi_request.user.is_authenticated)
 
     def test_regular_user_can_view_students(self):
         self.client.force_login(self.user)
         self.assertEqual(self.client.get(reverse("students")).status_code, 200)
 
+    def test_regular_user_can_view_courses(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("courses")).status_code, 200)
+
+    def test_regular_user_can_view_enrolments(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("enrolments")).status_code, 200)
+
     def test_regular_user_cannot_create_student(self):
         self.client.force_login(self.user)
         self.assertEqual(self.client.get(reverse("student_create")).status_code, 302)
+
+    def test_regular_user_cannot_update_student(self):
+        student = Student.objects.create(first_name="Ali", last_name="Amrani", email="ali@example.com")
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("student_update", args=[student.pk])).status_code, 302)
+
+    def test_regular_user_cannot_delete_student(self):
+        student = Student.objects.create(first_name="Ali", last_name="Amrani", email="ali@example.com")
+        self.client.force_login(self.user)
+        response = self.client.post(reverse("student_delete", args=[student.pk]))
+        self.assertEqual(response.status_code, 302)
+        self.assertTrue(Student.objects.filter(pk=student.pk).exists())
+
+    def test_regular_user_cannot_create_course(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("course_create")).status_code, 302)
+
+    def test_regular_user_cannot_update_course(self):
+        course = Course.objects.create(name="Django", code="DJ101", duration=30, price=Decimal("1000.00"), start_date=date.today(), end_date=date.today() + timedelta(days=30), capacity=20, status="active")
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("course_update", args=[course.pk])).status_code, 302)
+
+    def test_regular_user_cannot_create_enrolment(self):
+        self.client.force_login(self.user)
+        self.assertEqual(self.client.get(reverse("enrolment_create")).status_code, 302)
+
+    def test_staff_can_access_create_pages(self):
+        self.client.force_login(self.staff)
+        self.assertEqual(self.client.get(reverse("student_create")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("course_create")).status_code, 200)
+        self.assertEqual(self.client.get(reverse("enrolment_create")).status_code, 200)
 
     def test_staff_can_create_student(self):
         self.client.force_login(self.staff)
         response = self.client.post(reverse("student_create"), {"first_name": "Sara", "last_name": "Alaoui", "email": "sara@example.com", "phone": "", "date_of_birth": "", "address": ""})
         self.assertRedirects(response, reverse("students"))
         self.assertTrue(Student.objects.filter(email="sara@example.com").exists())
-
-    def test_regular_user_cannot_delete_student(self):
-        student = Student.objects.create(first_name="Ali", last_name="Amrani", email="ali@example.com")
-        self.client.force_login(self.user)
-        response = self.client.get(reverse("student_delete", args=[student.pk]))
-        self.assertEqual(response.status_code, 302)
-        self.assertTrue(Student.objects.filter(pk=student.pk).exists())
 
 
 class CRUDViewTests(TestCase):
