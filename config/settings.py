@@ -5,8 +5,10 @@ BASE_DIR = Path(__file__).resolve().parent.parent
 SECRET_KEY = os.getenv("DJANGO_SECRET_KEY", "django-insecure-dev-key")
 DEBUG = os.getenv("DJANGO_DEBUG", "False").lower() == "true"
 
+# Vercel production + preview hosts
 ALLOWED_HOSTS = [
     "djapross.vercel.app",
+    "www.djapross.vercel.app",
     ".vercel.app",
     "localhost",
     "127.0.0.1",
@@ -14,6 +16,7 @@ ALLOWED_HOSTS = [
 
 CSRF_TRUSTED_ORIGINS = [
     "https://djapross.vercel.app",
+    "https://www.djapross.vercel.app",
     "https://*.vercel.app",
 ]
 
